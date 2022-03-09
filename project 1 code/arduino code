@@ -1,0 +1,116 @@
+```cpp
+#include "Keyboard.h"
+#include <Arduino_JSON.h>
+#include <ArduinoBLE.h>
+
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+#include <avr/power.h>
+#endif
+
+#define PIN 6
+#define pin 7
+const int BUTTON_PIN = 2;
+const int BUTTON_pin = 3;
+
+JSONVar device;
+JSONVar device2;
+
+BLEService ledService("19B10010-E8F2-537E-4F6C-D104768A1214");
+BLEIntCharacteristic buttonCharacteristic("19B10012-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify);
+BLEIntCharacteristic anotherCharacteristic("19B10014-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify);
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(22, PIN, NEO_GRB + NEO_KHZ800); //2 red
+Adafruit_NeoPixel strip2 = Adafruit_NeoPixel(22, pin, NEO_GRB + NEO_KHZ800); //3 yellow
+
+int buttonState = 0;
+int previousButtonState = 0;
+int numberOfTurnOn = 0;
+int numberOfPixel = -1;
+
+int buttonState2 = 0;
+int previousButtonState2 = 0;
+int numberOfTurnOn2 = 0;
+int numberOfPixel2 = -1;
+
+void setup() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_pin, INPUT_PULLUP);
+  strip.begin();
+  strip.setBrightness(50);
+  strip.show();
+  strip2.begin();
+  strip2.setBrightness(50);
+  strip2.show();
+  Serial.begin(9600);
+  Keyboard.begin();
+  device["button"] = 0;
+  device2["button2"] = 0;
+
+  if (!BLE.begin()) {
+    Serial.println("starting BLE failed!");
+    while (1);
+  }
+  BLE.setLocalName("hollyMolly");
+  BLE.setAdvertisedService(ledService);
+  ledService.addCharacteristic(buttonCharacteristic);
+  ledService.addCharacteristic(anotherCharacteristic);
+  BLE.addService(ledService);
+  buttonCharacteristic.writeValue(0);
+  anotherCharacteristic.writeValue(0);
+  BLE.advertise();
+  Serial.println("Bluetooth device active, waiting for connections...");
+}
+
+void loop() {
+  BLE.poll();
+
+  buttonState = digitalRead(BUTTON_PIN);
+  buttonState2 = digitalRead(BUTTON_pin);
+  
+  if (buttonState != previousButtonState) {
+    if (buttonState == LOW) {
+      numberOfTurnOn += 1;
+      numberOfPixel += 1;
+      device["button"] = numberOfTurnOn;
+      Keyboard.press('a');
+//      Serial.print("Number of button pushes: ");
+//      Serial.println(numberOfTurnOn);
+      if (numberOfTurnOn % 17 == 0) {
+        strip.clear();
+        numberOfPixel = -1;
+      } 
+      strip.setBrightness(30);
+      strip.setPixelColor(numberOfPixel, 255, 0, 0);
+      strip.show();
+      Serial.println(device);
+      buttonCharacteristic.writeValue(numberOfTurnOn);
+    }else{
+      Keyboard.release('a'); 
+      }
+  }
+  
+    if (buttonState2 != previousButtonState2) {
+    if (buttonState2 == LOW) {
+      numberOfTurnOn2 += 1;
+      numberOfPixel2 += 1;
+      device2["button2"] = numberOfTurnOn2;
+      Keyboard.press('d');
+      if (numberOfTurnOn2 % 17 == 0) {
+        strip2.clear();
+        numberOfPixel2 = -1;
+      } 
+      strip2.setBrightness(30);
+      strip2.setPixelColor(numberOfPixel2, 255, 255, 0);
+      strip2.show();
+      Serial.println(device2);
+      anotherCharacteristic.writeValue(numberOfTurnOn2);
+    }else{
+      Keyboard.release('d'); 
+      }
+  }
+  previousButtonState = buttonState;
+  previousButtonState2 = buttonState2;
+  
+}
+```
